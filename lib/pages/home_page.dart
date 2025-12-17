@@ -40,6 +40,7 @@ class _HomePageState extends State<HomePage>
   String _lastGeneratedText = "";
   late stt.SpeechToText _speech;
   bool _isSpeechAvailable = false;
+
   @override
   void initState() {
     super.initState();
@@ -264,20 +265,24 @@ class _HomePageState extends State<HomePage>
     // 1. Initialize with specific Error Handling
     if (!_isSpeechAvailable) {
       _isSpeechAvailable = await _speech.initialize(
-        onStatus: (val) => print('onStatus: $val'),
+        onStatus: (val) {
+          print('onStatus: $val');
+          // Automatically stop UI if speech recognition is actually done/notListening
+          if (val == 'notListening' && _isRecording) {
+            // Optional: You can choose to restart listening here if you want continuous mode
+            // _stopRecording();
+          }
+        },
         onError: (val) {
           print('onError: $val');
-          // Fix: Show error message instead of doing nothing
           if (val.errorMsg == 'error_no_match') {
             _showErrorSnackBar(
-              "Could not recognize speech. Please speak clearly in ${_selectedMode == 'PSL' ? 'Urdu' : 'English'}.",
+              "Could not recognize speech. Please speak clearly.",
             );
-          } else if (val.errorMsg == 'error_speech_timeout') {
-            // Optional: Ignore timeouts or show a subtle message
-          } else {
-            _showErrorSnackBar("Error: ${val.errorMsg}");
           }
-          _stopRecording(); // Reset UI
+          // specific handling for "error_speech_timeout" is no longer needed
+          // as we removed the timeout, but system timeouts can still occur.
+          _stopRecording();
         },
       );
     }
@@ -301,32 +306,29 @@ class _HomePageState extends State<HomePage>
           setState(() {
             String recognizedText = val.recognizedWords;
 
-            // --- 2. CHECK FOR WRONG LANGUAGE SCRIPT ---
+            // --- CHECK FOR WRONG LANGUAGE SCRIPT ---
             if (recognizedText.isNotEmpty) {
               if (_selectedMode == 'PSL') {
-                // If in Urdu Mode but English text is detected
                 if (RegExp(r'[a-zA-Z]').hasMatch(recognizedText)) {
                   _stopRecording();
                   _textController.clear();
                   _showErrorSnackBar(
-                    "Incorrect Language: You are speaking English, but 'PSL' (Urdu) is selected.",
+                    "Incorrect Language: English detected in Urdu mode.",
                   );
                   return;
                 }
               } else {
-                // If in ASL Mode but Urdu text is detected
                 if (RegExp(r'[\u0600-\u06FF]').hasMatch(recognizedText)) {
                   _stopRecording();
                   _textController.clear();
                   _showErrorSnackBar(
-                    "Incorrect Language: You are speaking Urdu, but 'ASL' (English) is selected.",
+                    "Incorrect Language: Urdu detected in English mode.",
                   );
                   return;
                 }
               }
             }
 
-            // If script is correct, update the text box
             _textController.text = recognizedText;
             _textController.selection = TextSelection.fromPosition(
               TextPosition(offset: _textController.text.length),
@@ -334,8 +336,8 @@ class _HomePageState extends State<HomePage>
           });
         },
         localeId: localeId,
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
+        // listenFor: const Duration(seconds: 30), // REMOVED: 30s limit
+        // pauseFor: const Duration(seconds: 3),   // REMOVED: 3s silence limit
         partialResults: true,
         cancelOnError: true,
       );
@@ -559,32 +561,69 @@ class _HomePageState extends State<HomePage>
 
                           const SizedBox(width: 12),
 
-                          // Text Input
+                          // Text Input OR Recording Status
                           Expanded(
                             child: Container(
+                              height: 50, // Fixed height for consistent look
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(30),
+                                border: _isRecording
+                                    ? Border.all(
+                                        color: Colors.red.withOpacity(0.5),
+                                        width: 1.5,
+                                      )
+                                    : null,
                               ),
-                              child: TextField(
-                                controller: _textController,
-                                textDirection: _selectedMode == 'PSL'
-                                    ? TextDirection.rtl
-                                    : TextDirection.ltr,
-                                decoration: InputDecoration(
-                                  hintText: _selectedMode == 'PSL'
-                                      ? "Enter Urdu text..."
-                                      : "Enter English text...",
-                                  border: InputBorder.none,
-                                  hintStyle: TextStyle(color: Colors.grey[500]),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                ),
-                              ),
+                              child: _isRecording
+                                  ? Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        AnimatedBuilder(
+                                          animation: _micAnimationController,
+                                          builder: (context, child) {
+                                            return Icon(
+                                              Icons.mic,
+                                              color: Colors.red.withOpacity(
+                                                _micAnimationController.value,
+                                              ),
+                                              size: 24,
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          "Recording: $_recordingSeconds s",
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : TextField(
+                                      controller: _textController,
+                                      textDirection: _selectedMode == 'PSL'
+                                          ? TextDirection.rtl
+                                          : TextDirection.ltr,
+                                      decoration: InputDecoration(
+                                        hintText: _selectedMode == 'PSL'
+                                            ? "Enter Urdu text..."
+                                            : "Enter English text...",
+                                        border: InputBorder.none,
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey[500],
+                                        ),
+                                        contentPadding: const EdgeInsets.only(
+                                          bottom: 5,
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ),
 
@@ -705,8 +744,7 @@ class _HomePageState extends State<HomePage>
               ),
             ),
 
-            // 5. RECORDING OVERLAY
-            _buildRecordingUI(),
+            // REMOVED: _buildRecordingUI() call
 
             // 6. PROFILE MENU
             _buildProfileMenuOverlay(size),
@@ -918,53 +956,6 @@ class _HomePageState extends State<HomePage>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecordingUI() {
-    if (!_isRecording) return const SizedBox.shrink();
-    return Positioned(
-      bottom: 160,
-      left: 20,
-      right: 20,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedBuilder(
-              animation: _micAnimationController,
-              builder: (context, child) {
-                return Icon(
-                  Icons.mic,
-                  size: 35,
-                  color: Colors.red.withOpacity(_micAnimationController.value),
-                );
-              },
-            ),
-            const SizedBox(width: 15),
-            Text(
-              "Recording: $_recordingSeconds s",
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-            ),
-          ],
         ),
       ),
     );
