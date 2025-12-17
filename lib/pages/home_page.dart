@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:video_player/video_player.dart';
-import '../routes.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 // Imports for API calls
 import 'package:http/http.dart' as http;
@@ -38,11 +38,13 @@ class _HomePageState extends State<HomePage>
 
   // State to store the text displayed below the video
   String _lastGeneratedText = "";
-
+  late stt.SpeechToText _speech;
+  bool _isSpeechAvailable = false;
   @override
   void initState() {
     super.initState();
     // Initialize video controller with the asset
+    _speech = stt.SpeechToText();
     _videoController = VideoPlayerController.asset('assets/sample_video.mp4')
       ..initialize().then((_) {
         setState(() {});
@@ -258,16 +260,88 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  void _startRecording() {
-    setState(() {
-      _isRecording = true;
-      _recordingSeconds = 0;
+  void _startRecording() async {
+    // 1. Initialize with specific Error Handling
+    if (!_isSpeechAvailable) {
+      _isSpeechAvailable = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) {
+          print('onError: $val');
+          // Fix: Show error message instead of doing nothing
+          if (val.errorMsg == 'error_no_match') {
+            _showErrorSnackBar(
+              "Could not recognize speech. Please speak clearly in ${_selectedMode == 'PSL' ? 'Urdu' : 'English'}.",
+            );
+          } else if (val.errorMsg == 'error_speech_timeout') {
+            // Optional: Ignore timeouts or show a subtle message
+          } else {
+            _showErrorSnackBar("Error: ${val.errorMsg}");
+          }
+          _stopRecording(); // Reset UI
+        },
+      );
+    }
+
+    if (_isSpeechAvailable) {
+      setState(() {
+        _isRecording = true;
+        _recordingSeconds = 0;
+      });
+
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() {
           _recordingSeconds = timer.tick;
         });
       });
-    });
+
+      String localeId = _selectedMode == 'PSL' ? 'ur_PK' : 'en_US';
+
+      _speech.listen(
+        onResult: (val) {
+          setState(() {
+            String recognizedText = val.recognizedWords;
+
+            // --- 2. CHECK FOR WRONG LANGUAGE SCRIPT ---
+            if (recognizedText.isNotEmpty) {
+              if (_selectedMode == 'PSL') {
+                // If in Urdu Mode but English text is detected
+                if (RegExp(r'[a-zA-Z]').hasMatch(recognizedText)) {
+                  _stopRecording();
+                  _textController.clear();
+                  _showErrorSnackBar(
+                    "Incorrect Language: You are speaking English, but 'PSL' (Urdu) is selected.",
+                  );
+                  return;
+                }
+              } else {
+                // If in ASL Mode but Urdu text is detected
+                if (RegExp(r'[\u0600-\u06FF]').hasMatch(recognizedText)) {
+                  _stopRecording();
+                  _textController.clear();
+                  _showErrorSnackBar(
+                    "Incorrect Language: You are speaking Urdu, but 'ASL' (English) is selected.",
+                  );
+                  return;
+                }
+              }
+            }
+
+            // If script is correct, update the text box
+            _textController.text = recognizedText;
+            _textController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _textController.text.length),
+            );
+          });
+        },
+        localeId: localeId,
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+        partialResults: true,
+        cancelOnError: true,
+      );
+    } else {
+      _showErrorSnackBar("Microphone permission denied or speech unavailable.");
+    }
   }
 
   void _stopRecording() {
@@ -276,6 +350,7 @@ class _HomePageState extends State<HomePage>
       _recordingTimer?.cancel();
       _recordingTimer = null;
     });
+    _speech.stop(); // <--- This actually stops the phone from listening
   }
 
   // --- UI BUILDER ---
