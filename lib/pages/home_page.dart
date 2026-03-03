@@ -169,7 +169,7 @@ class _HomePageState extends State<HomePage>
         ? '/predict/video'
         : '/predict/asl';
 
-    final url = Uri.parse('http://192.168.76.8:8000$endpoint');
+    final url = Uri.parse('http://192.168.18.14:8000$endpoint');
 
     try {
       final response = await http.post(
