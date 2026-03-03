@@ -1,6 +1,8 @@
 // lib/pages/home_page.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../app_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:video_player/video_player.dart';
@@ -44,13 +46,20 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
+
+    // watch for settings changes to immediately apply them
+    AppSettings.instance.addListener(_onSettingsChanged);
+
     // Initialize video controller with the asset
     _speech = stt.SpeechToText();
     _videoController = VideoPlayerController.asset('assets/sample_video.mp4')
       ..initialize().then((_) {
         setState(() {});
-        _videoController.play();
+        if (AppSettings.instance.autoPlay) {
+          _videoController.play();
+        }
         _videoController.setLooping(false);
+        _videoController.setPlaybackSpeed(AppSettings.instance.playbackSpeed);
       });
 
     _videoController.addListener(_videoListener);
@@ -88,6 +97,7 @@ class _HomePageState extends State<HomePage>
 
   @override
   void dispose() {
+    AppSettings.instance.removeListener(_onSettingsChanged);
     _videoController.removeListener(_videoListener);
     _videoController.dispose();
     _recordingTimer?.cancel();
@@ -107,8 +117,13 @@ class _HomePageState extends State<HomePage>
             setState(() {
               _isLoading = false;
             });
-            _videoController.play();
+            if (AppSettings.instance.autoPlay) {
+              _videoController.play();
+            }
             _videoController.setLooping(false);
+            _videoController.setPlaybackSpeed(
+              AppSettings.instance.playbackSpeed,
+            );
             _isPlaying = true;
           })
           .catchError((error) {
@@ -129,8 +144,11 @@ class _HomePageState extends State<HomePage>
     _videoController = VideoPlayerController.asset(assetPath)
       ..initialize().then((_) {
         setState(() {});
-        _videoController.play();
+        if (AppSettings.instance.autoPlay) {
+          _videoController.play();
+        }
         _videoController.setLooping(false);
+        _videoController.setPlaybackSpeed(AppSettings.instance.playbackSpeed);
         _isPlaying = true;
       });
     _videoController.addListener(_videoListener);
@@ -492,6 +510,8 @@ class _HomePageState extends State<HomePage>
 
                         const SizedBox(height: 25),
 
+                        const SizedBox(height: 15),
+
                         // TEXT INFO SECTION (Only if text generated)
                         if (_lastGeneratedText.isNotEmpty)
                           Padding(
@@ -504,8 +524,8 @@ class _HomePageState extends State<HomePage>
                                 Text(
                                   _lastGeneratedText,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 24,
+                                  style: TextStyle(
+                                    fontSize: AppSettings.instance.fontSize,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
                                   ),
@@ -890,13 +910,19 @@ class _HomePageState extends State<HomePage>
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 children: [
-                  _buildMenuItem(Icons.edit, "Edit Profile", () {}),
+                  _buildMenuItem(Icons.edit, "Edit Profile", () {
+                    setState(() => _isProfileMenuOpen = false);
+                    Navigator.pushNamed(context, '/edit-profile');
+                  }),
                   // Navigate to Settings Page
                   _buildMenuItem(Icons.settings, "Settings", () {
                     setState(() => _isProfileMenuOpen = false);
                     Navigator.pushNamed(context, '/settings');
                   }),
-                  _buildMenuItem(Icons.help_outline, "Instructions", () {}),
+                  _buildMenuItem(Icons.help_outline, "Instructions", () {
+                    setState(() => _isProfileMenuOpen = false);
+                    Navigator.pushNamed(context, '/instructions');
+                  }),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -1011,5 +1037,17 @@ class _HomePageState extends State<HomePage>
         ),
       ),
     );
+  }
+
+  void _onSettingsChanged() {
+    // if playback speed changes while a clip is loaded update it
+    if (_videoController.value.isInitialized) {
+      _videoController.setPlaybackSpeed(AppSettings.instance.playbackSpeed);
+      if (AppSettings.instance.autoPlay && !_videoController.value.isPlaying) {
+        _videoController.play();
+      }
+    }
+    // rebuild to apply any font size change used above
+    if (mounted) setState(() {});
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_settings.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -8,18 +10,27 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // --- State Variables (In a real app, use SharedPreferences) ---
-  bool _isDarkMode = false;
+  // --- State Variables (synced with AppSettings) ---
   bool _autoPlay = true;
   double _playbackSpeed = 1.0; // 1.0 is normal speed
   double _fontSize = 16.0;
+
+  @override
+  void initState() {
+    super.initState();
+    // load initial values from singleton
+    final settings = AppSettings.instance;
+    _autoPlay = settings.autoPlay;
+    _playbackSpeed = settings.playbackSpeed;
+    _fontSize = settings.fontSize;
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // Light grey background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           // 1. BACKGROUND HEADER (Matches your App Theme)
@@ -118,7 +129,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               inactiveColor: Colors.grey[300],
                               onChanged: (val) {
                                 setState(() => _playbackSpeed = val);
-                                // TODO: Save this value to SharedPreferences
+                                AppSettings.instance.updatePlaybackSpeed(val);
                               },
                             ),
                             const Row(
@@ -159,59 +170,51 @@ class _SettingsPageState extends State<SettingsPage> {
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         value: _autoPlay,
-                        onChanged: (val) => setState(() => _autoPlay = val),
+                        onChanged: (val) {
+                          setState(() => _autoPlay = val);
+                          AppSettings.instance.updateAutoPlay(val);
+                        },
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // --- SECTION 2: APPEARANCE ---
-                  _buildSectionHeader("Appearance"),
+                  // --- SECTION 2: TEXT SIZE ---
+                  _buildSectionHeader("Text Size"),
                   _buildCard(
                     children: [
-                      // Dark Mode Toggle
-                      SwitchListTile(
-                        activeColor: const Color(0xFF00BCD4),
-                        secondary: Icon(
-                          Icons.dark_mode,
-                          color: _isDarkMode ? Colors.purple : Colors.grey,
-                        ),
-                        title: const Text(
-                          "Dark Mode",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        value: _isDarkMode,
-                        onChanged: (val) {
-                          setState(() => _isDarkMode = val);
-                          // Note: Real Dark Mode requires changing MaterialApp theme
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Theme saved (Requires App Restart to fully apply)",
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1),
-                      // Text Size
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "Text Size",
+                              "Text Size Preview",
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
+                                color: Colors.grey,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "Preview Text",
+                                style: TextStyle(
+                                  fontSize: _fontSize,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 IconButton(
                                   icon: const Icon(
@@ -219,13 +222,19 @@ class _SettingsPageState extends State<SettingsPage> {
                                     color: Colors.grey,
                                   ),
                                   onPressed: () => setState(() {
-                                    if (_fontSize > 12) _fontSize--;
+                                    if (_fontSize > 12) {
+                                      _fontSize--;
+                                      AppSettings.instance.updateFontSize(
+                                        _fontSize,
+                                      );
+                                    }
                                   }),
                                 ),
                                 Text(
                                   "${_fontSize.toInt()}",
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 18,
                                   ),
                                 ),
                                 IconButton(
@@ -234,7 +243,12 @@ class _SettingsPageState extends State<SettingsPage> {
                                     color: Color(0xFF00BCD4),
                                   ),
                                   onPressed: () => setState(() {
-                                    if (_fontSize < 24) _fontSize++;
+                                    if (_fontSize < 24) {
+                                      _fontSize++;
+                                      AppSettings.instance.updateFontSize(
+                                        _fontSize,
+                                      );
+                                    }
                                   }),
                                 ),
                               ],

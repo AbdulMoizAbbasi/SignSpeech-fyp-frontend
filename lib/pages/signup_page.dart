@@ -119,7 +119,7 @@ class _SignupPageState extends State<SignupPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: SizedBox(
           height: size.height,
@@ -145,7 +145,9 @@ class _SignupPageState extends State<SignupPage> {
                         left: -50,
                         child: CircleAvatar(
                           radius: 100,
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withOpacity(0.1),
                         ),
                       ),
                       Positioned(
@@ -153,7 +155,9 @@ class _SignupPageState extends State<SignupPage> {
                         right: -30,
                         child: CircleAvatar(
                           radius: 60,
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withOpacity(0.1),
                         ),
                       ),
                     ],
@@ -172,7 +176,7 @@ class _SignupPageState extends State<SignupPage> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.2),
+                        color: Theme.of(context).cardColor.withOpacity(0.2),
                       ),
                       child: Container(
                         decoration: BoxDecoration(
@@ -196,14 +200,14 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                       "SignSpeech",
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                         letterSpacing: 1.2,
-                        shadows: [
+                        shadows: const [
                           Shadow(
                             blurRadius: 10.0,
                             color: Colors.black26,

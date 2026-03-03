@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/home_page.dart';
-import 'pages/settings_page.dart'; // 1. Make sure this import exists!
+import 'pages/settings_page.dart';
+import 'pages/instructions_page.dart';
+import 'pages/edit_profile_page.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -13,11 +15,12 @@ class RouteGenerator {
         return MaterialPageRoute(builder: (_) => const SignupPage());
       case '/home':
         return MaterialPageRoute(builder: (_) => const HomePage());
-
-      // 2. THIS IS THE MISSING PART CAUSING YOUR ERROR
       case '/settings':
         return MaterialPageRoute(builder: (_) => const SettingsPage());
-
+      case '/instructions':
+        return MaterialPageRoute(builder: (_) => const InstructionsPage());
+      case '/edit-profile':
+        return MaterialPageRoute(builder: (_) => const EditProfilePage());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

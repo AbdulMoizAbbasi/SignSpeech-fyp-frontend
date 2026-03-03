@@ -82,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: SizedBox(
           height: size.height,
@@ -109,7 +109,9 @@ class _LoginPageState extends State<LoginPage> {
                         left: -50,
                         child: CircleAvatar(
                           radius: 100,
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withOpacity(0.1),
                         ),
                       ),
                       Positioned(
@@ -117,7 +119,9 @@ class _LoginPageState extends State<LoginPage> {
                         right: -30,
                         child: CircleAvatar(
                           radius: 80,
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withOpacity(0.1),
                         ),
                       ),
                     ],
@@ -136,9 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(
-                          0.2,
-                        ), // Glass border effect
+                        color: Theme.of(
+                          context,
+                        ).cardColor.withOpacity(0.2), // Glass border effect
                       ),
                       child: Container(
                         decoration: BoxDecoration(
