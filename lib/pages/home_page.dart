@@ -187,7 +187,9 @@ class _HomePageState extends State<HomePage>
         ? '/predict/video'
         : '/predict/asl';
 
-    final url = Uri.parse('http://10.204.7.8:8000$endpoint');
+    final url = Uri.parse(
+      'https://abdulmoizabbasi-sign-language-api.hf.space$endpoint',
+    );
 
     try {
       final response = await http.post(
